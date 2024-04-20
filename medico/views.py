@@ -11,7 +11,7 @@ def cadastro_medico(request):
     
     if is_medico(request.user):
         messages.add_message(request, constants.WARNING, 'Você já está cadastrado como médico.')
-        return redirect('/medicos/abrir_horario')
+        return redirect('/medico/abrir_horario')
     
     if request.method == "GET":
         especialidades = Especialidades.objects.all()
@@ -52,7 +52,7 @@ def cadastro_medico(request):
 
         messages.add_message(request, constants.SUCCESS, 'Cadastro médico realizado com sucesso.')
 
-        return redirect('/medicos/abrir_horario')
+        return redirect('/medico/abrir_horario')
     
 def is_medico(user):
     return DadosMedico.objects.filter(user=user).exists()
