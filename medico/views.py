@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from datetime import datetime, timedelta
 from .models import Especialidades, DadosMedico, DatasAbertas
-from paciente.models import Consulta
+from paciente.models import Consulta, Documento
 
 
 @login_required
@@ -102,3 +102,46 @@ def consultas_medico(request):
     consultas_restantes = Consulta.objects.exclude(id__in=consultas_hoje.values('id'))
 
     return render(request, 'consultas_medico.html', {'consultas_hoje': consultas_hoje, 'consultas_restantes': consultas_restantes, 'is_medico': is_medico(request.user)})
+
+
+def consulta_area_medico(request, id_consulta):
+    if not is_medico(request.user):
+        messages.add_message(request, constants.WARNING, 'Somente médicos podem acessar essa página.')
+        return redirect('/usuarios/sair')
+    
+
+    if request.method == "GET":
+        consulta = Consulta.objects.get(id=id_consulta)
+        documentos = Documento.objects.filter(consulta=consulta)
+        return render(request, 'consulta_area_medico.html', {'consulta': consulta,'documentos':documentos,'is_medico': is_medico(request.user)})
+    elif request.method == "POST":
+        # Inicializa a consulta + link da chamada
+        consulta = Consulta.objects.get(id=id_consulta)
+        link = request.POST.get('link')
+
+        if consulta.status == 'C':
+            messages.add_message(request, constants.WARNING, 'Essa consulta já foi cancelada, você não pode inicia-la')
+            return redirect(f'/medico/consulta_area_medico/{id_consulta}')
+        elif consulta.status == "F":
+            messages.add_message(request, constants.WARNING, 'Essa consulta já foi finalizada, você não pode inicia-la')
+            return redirect(f'/medico/consulta_area_medico/{id_consulta}')
+        
+        consulta.link = link
+        consulta.status = 'I'
+        consulta.save()
+
+        messages.add_message(request, constants.SUCCESS, 'Consulta inicializada com sucesso.')
+        return redirect(f'/medico/consulta_area_medico/{id_consulta}')
+    
+def finalizar_consulta(request, id_consulta):
+    if not is_medico(request.user):
+        messages.add_message(request, constants.WARNING, 'Somente médicos podem acessar essa página.')
+        return redirect('/usuarios/sair')
+    
+    consulta = Consulta.objects.get(id=id_consulta)
+    if request.user != consulta.data_aberta.user:
+        messages.add_message(request, constants.ERROR, 'Esta consulta não é sua')
+        return redirect(f'/medico/consulta_area_medico/{id_consulta}')
+    consulta.status = 'F'
+    consulta.save()
+    return redirect(f'/medico/consulta_area_medico/{id_consulta}')
